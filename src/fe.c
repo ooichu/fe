@@ -498,7 +498,7 @@ static fe_Object* read_(fe_Context *ctx, fe_ReadFn fn, void *udata) {
       return NULL;
 
     case ';':
-      while (chr && chr != '\n') { chr = fn(ctx, udata); }
+      while (chr && chr != '\n' && chr != '\r') { chr = fn(ctx, udata); }
       return read_(ctx, fn, udata);
 
     case ')':
