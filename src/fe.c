@@ -44,17 +44,17 @@ static const union { size_t u; char c; } endian = { 0x1 };
 enum {
   P_LET, P_SET, P_IF, P_FN, P_MAC, P_WHILE, P_QUOTE, P_AND, P_OR, P_DO, P_CONS,
   P_CAR, P_CDR, P_SETCAR, P_SETCDR, P_LIST, P_NOT, P_IS, P_ATOM, P_PRINT, P_LT,
-  P_LTE, P_ADD, P_SUB, P_MUL, P_DIV, P_MOD, P_IDIV, P_MAX
+  P_LTE, P_ADD, P_SUB, P_MUL, P_DIV, P_MOD, P_IDIV, P_GENSYM, P_MAX
 };
 
 static const char *primnames[] = {
   "let", "=", "if", "fn", "mac", "while", "quote", "and", "or", "do", "cons",
   "car", "cdr", "setcar", "setcdr", "list", "not", "is", "atom", "print", "<",
-  "<=", "+", "-", "*", "/", "%", "//"
+  "<=", "+", "-", "*", "/", "%", "//", "gensym"
 };
 
 static const char *typenames[] = {
-  "pair", "free", "nil", "number", "symbol", "string",
+  "pair", "free", "nil", "number", "string", "symbol",
   "func", "macro", "prim", "cfunc", "ptr"
 };
 
@@ -162,7 +162,7 @@ begin:
     case FE_TPAIR:
       fe_mark(ctx, car);
       /* fall through */
-    case FE_TFUNC: case FE_TMACRO: case FE_TSYMBOL: case FE_TSTRING:
+    case FE_TFUNC: case FE_TMACRO: case FE_TSTRING: case FE_TSYMBOL:
       obj = cdr(obj);
       goto begin;
 
@@ -288,17 +288,24 @@ fe_Object* fe_string(fe_Context *ctx, const char *str) {
 
 fe_Object* fe_symbol(fe_Context *ctx, const char *name) {
   fe_Object *obj;
-  /* try to find in symlist */
-  for (obj = ctx->symlist; !isnil(obj); obj = cdr(obj)) {
-    if (streq(car(cdr(car(obj))), name)) {
-      return car(obj);
+  /* anonymous symbol? */
+  if (!name) {
+    obj = object(ctx);
+    settype(obj, FE_TSYMBOL);
+    cdr(obj) = fe_cons(ctx, &nil, &nil);
+  } else {
+    /* try to find in symlist */
+    for (obj = ctx->symlist; !isnil(obj); obj = cdr(obj)) {
+      if (streq(car(cdr(car(obj))), name)) {
+        return car(obj);
+      }
     }
+    /* create new object, push to symlist and return */
+    obj = object(ctx);
+    settype(obj, FE_TSYMBOL);
+    cdr(obj) = fe_cons(ctx, fe_string(ctx, name), &nil);
+    ctx->symlist = fe_cons(ctx, obj, ctx->symlist);
   }
-  /* create new object, push to symlist and return */
-  obj = object(ctx);
-  settype(obj, FE_TSYMBOL);
-  cdr(obj) = fe_cons(ctx, fe_string(ctx, name), &nil);
-  ctx->symlist = fe_cons(ctx, obj, ctx->symlist);
   return obj;
 }
 
@@ -378,10 +385,6 @@ static void write_(fe_Context *ctx, fe_Object *obj, fe_WriteFn fn, void *udata, 
       fn(ctx, udata, ')');
       break;
 
-    case FE_TSYMBOL:
-      write_(ctx, car(cdr(obj)), fn, udata, 0);
-      break;
-
     case FE_TSTRING:
       if (qt) { fn(ctx, udata, '"'); }
       while (!isnil(obj)) {
@@ -394,6 +397,14 @@ static void write_(fe_Context *ctx, fe_Object *obj, fe_WriteFn fn, void *udata, 
       }
       if (qt) { fn(ctx, udata, '"'); }
       break;
+
+    case FE_TSYMBOL:
+      /* isn't anonymous symbol? */
+      if (car(cdr(obj)) != &nil) {
+        write_(ctx, car(cdr(obj)), fn, udata, 0);
+        break;
+      }
+      /* fall through */
 
     default:
       sprintf(buf, "[%s %p]", typenames[type(obj)], (void*) obj);
@@ -765,6 +776,10 @@ static fe_Object* eval(fe_Context *ctx, fe_Object *obj, fe_Object *env, fe_Objec
         case P_MOD: arithop(a - b * (long) (a / b)); break;
         case P_IDIV:
           arithop(b ? (long) (a / b) : (fe_error(ctx, "divide by zero"), a));
+          break;
+
+        case P_GENSYM:
+          res = fe_symbol(ctx, NULL);
           break;
       }
       break;

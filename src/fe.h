@@ -23,7 +23,7 @@ typedef char (*fe_ReadFn)(fe_Context *ctx, void *udata);
 typedef struct { fe_ErrorFn error; fe_CFunc mark, gc; } fe_Handlers;
 
 enum {
-  FE_TPAIR, FE_TFREE, FE_TNIL, FE_TNUMBER, FE_TSYMBOL, FE_TSTRING,
+  FE_TPAIR, FE_TFREE, FE_TNIL, FE_TNUMBER, FE_TSTRING, FE_TSYMBOL,
   FE_TFUNC, FE_TMACRO, FE_TPRIM, FE_TCFUNC, FE_TPTR
 };
 

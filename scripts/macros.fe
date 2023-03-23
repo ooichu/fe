@@ -4,11 +4,12 @@
 
 
 (= for (mac (item lst . body)
+  (let for-iter (gensym))
   (list 'do
-    (list 'let 'for-iter lst)
-    (list 'while 'for-iter
-      (list 'let item '(car for-iter))
-      '(= for-iter (cdr for-iter))
+    (list 'let for-iter lst)
+    (list 'while for-iter
+      (list 'let item (list 'car for-iter))
+      (list '= for-iter (list 'cdr for-iter))
       (cons 'do body)
     )
   )
