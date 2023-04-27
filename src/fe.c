@@ -664,9 +664,8 @@ static fe_Object* eval(fe_Context *ctx, fe_Object *obj, fe_Object *env, fe_Objec
       switch (prim(fn)) {
         case P_LET:
           va = checktype(ctx, fe_nextarg(ctx, &arg), FE_TSYMBOL);
-          if (newenv) {
-            *newenv = fe_cons(ctx, fe_cons(ctx, va, evalarg()), env);
-          }
+          if (!newenv) { fe_error(ctx, "can't bind local in global scope"); }
+          *newenv = fe_cons(ctx, fe_cons(ctx, va, evalarg()), env);
           break;
 
         case P_SET:
